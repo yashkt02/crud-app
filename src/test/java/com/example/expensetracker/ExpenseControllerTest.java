@@ -8,6 +8,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -66,4 +69,15 @@ class ExpenseControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").exists());
     }
+
+        @Test
+        void futureExpenseDateIsRejected() throws Exception {
+                String tomorrow = LocalDate.now(ZoneId.of("Asia/Kolkata")).plusDays(1).toString();
+
+                mockMvc.perform(post("/api/expenses")
+                                                .contentType(MediaType.APPLICATION_JSON)
+                                                .content("{\"description\":\"Future expense\",\"category\":\"Other\",\"amount\":10,\"date\":\"" + tomorrow + "\"}"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").exists());
+        }
 }

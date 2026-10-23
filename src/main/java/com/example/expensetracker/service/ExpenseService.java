@@ -6,6 +6,7 @@ import com.example.expensetracker.repository.ExpenseRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,7 +51,7 @@ public class ExpenseService {
         if (request == null || request.description() == null || request.description().isBlank()
                 || request.category() == null || request.category().isBlank()
                 || !Double.isFinite(request.amount()) || request.amount() <= 0
-                || request.date() == null || request.date().isAfter(LocalDate.now())) {
+                || request.date() == null || request.date().isAfter(LocalDate.now(ZoneId.of("Asia/Kolkata")))) {
             throw new IllegalArgumentException("Enter a description, category, positive amount, and a valid date not in the future.");
         }
     }
