@@ -16,7 +16,7 @@ docker compose up --build
 
 The first build downloads the service dependencies and container images. Open [http://localhost:8080](http://localhost:8080) when startup finishes. Compose starts the expense UI/API, auth service, summary service, Kafka, and a dedicated MySQL database. MySQL is exposed on host port `3307`, so it does not conflict with a local MySQL server on `3306`. The app services use the Compose network and do not need local Kafka or MySQL credentials.
 
-The local admin account is `admin` with password `yash1234`. This is a local-only convenience password; change it by setting `ADMIN_PASSWORD` before starting Compose, and never use this default in a shared or deployed environment. Set `JWT_SECRET`, `ADMIN_PASSWORD`, `MYSQL_ROOT_PASSWORD`, and `MYSQL_APP_PASSWORD` to private values for any shared environment. Demo user accounts are not created unless `DEMO_USERS` is explicitly set. Data is retained in Compose volumes. Stop the services with `Ctrl+C`, then run `docker compose down`; `docker compose down -v` also deletes the local database and account data.
+Set `JWT_SECRET`, `ADMIN_PASSWORD`, `MYSQL_ROOT_PASSWORD`, and `MYSQL_APP_PASSWORD` to private values before starting Compose or deploying. Never commit credentials. Demo user accounts are not created unless `DEMO_USERS` is explicitly set. Data is retained in Compose volumes. Stop the services with `Ctrl+C`, then run `docker compose down`; `docker compose down -v` also deletes the local database and account data.
 
 ### Deploy the full stack to Render
 

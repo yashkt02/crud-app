@@ -67,7 +67,7 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-this-before-deploying}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-yash1234}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in your environment or .env file}
       AUTH_DB_URL: jdbc:h2:file:/data/expense_auth;DB_CLOSE_ON_EXIT=FALSE
     ports:
       - "8081:8081"

@@ -57,7 +57,7 @@ services:
       - key: ADMIN_USERNAME
         value: admin
       - key: ADMIN_PASSWORD
-        value: yash1234
+        sync: false
       - key: DEMO_USERS
         value: ""
       - key: AUTH_DB_URL
@@ -113,7 +113,7 @@ services:
   - type: pserv
     name: everyday-mysql
     runtime: docker
-    plan: 0.5c-1g
+    plan: 0.5c-512mb
     dockerfilePath: ./deploy/mysql/Dockerfile
     dockerContext: ./deploy/mysql
     envVars:
