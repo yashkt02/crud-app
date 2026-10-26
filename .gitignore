@@ -1,4 +1,7 @@
-target/
+/target/
+**/target/
 .idea/
 *.iml
 *.log
+/auth-service/data/
+/summary-service/data/
