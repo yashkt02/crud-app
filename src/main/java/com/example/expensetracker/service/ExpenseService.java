@@ -2,6 +2,7 @@ package com.example.expensetracker.service;
 
 import com.example.expensetracker.model.Expense;
 import com.example.expensetracker.model.ExpenseRequest;
+import com.example.expensetracker.model.ExpenseEvent;
 import com.example.expensetracker.repository.ExpenseRepository;
 import org.springframework.stereotype.Service;
 
@@ -13,38 +14,47 @@ import java.util.Optional;
 @Service
 public class ExpenseService {
     private final ExpenseRepository repository;
+    private final ExpenseEventPublisher eventPublisher;
 
-    public ExpenseService(ExpenseRepository repository) {
+    public ExpenseService(ExpenseRepository repository, ExpenseEventPublisher eventPublisher) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
-    public List<Expense> findAll() {
-        return repository.findAll();
+    public List<Expense> findAll(String ownerId) {
+        return repository.findAll(ownerId);
     }
 
-    public Optional<Expense> findById(long id) {
-        return repository.findById(id);
+    public Optional<Expense> findById(String ownerId, long id) {
+        return repository.findById(ownerId, id);
     }
 
-    public Expense create(ExpenseRequest request) {
+    public Expense create(String ownerId, ExpenseRequest request) {
         validate(request);
-        return repository.save(toExpense(null, request));
+        Expense created = repository.create(ownerId, toExpense(null, ownerId, request));
+        eventPublisher.publish(ExpenseEvent.upsert(created));
+        return created;
     }
 
-    public Optional<Expense> update(long id, ExpenseRequest request) {
+    public Optional<Expense> update(String ownerId, long id, ExpenseRequest request) {
         validate(request);
-        if (repository.findById(id).isEmpty()) {
-            return Optional.empty();
+        return repository.update(ownerId, id, toExpense(id, ownerId, request))
+                .map(updated -> {
+                    eventPublisher.publish(ExpenseEvent.upsert(updated));
+                    return updated;
+                });
+    }
+
+    public boolean delete(String ownerId, long id) {
+        boolean deleted = repository.deleteById(ownerId, id);
+        if (deleted) {
+            eventPublisher.publish(ExpenseEvent.deleted(ownerId, id));
         }
-        return Optional.of(repository.save(toExpense(id, request)));
+        return deleted;
     }
 
-    public boolean delete(long id) {
-        return repository.deleteById(id);
-    }
-
-    private Expense toExpense(Long id, ExpenseRequest request) {
-        return new Expense(id, request.description().trim(), request.category().trim(), request.amount(), request.date());
+    private Expense toExpense(Long id, String ownerId, ExpenseRequest request) {
+        return new Expense(id, ownerId, request.description().trim(), request.category().trim(), request.amount(), request.date());
     }
 
     private void validate(ExpenseRequest request) {

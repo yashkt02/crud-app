@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 import java.util.List;
@@ -31,18 +33,18 @@ public class ExpenseController {
     }
 
     @GetMapping
-    public List<Expense> findAll() {
-        return service.findAll();
+    public List<Expense> findAll(@AuthenticationPrincipal Jwt principal) {
+        return service.findAll(principal.getSubject());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Expense> findById(@PathVariable long id) {
-        return ResponseEntity.of(service.findById(id));
+    public ResponseEntity<Expense> findById(@PathVariable long id, @AuthenticationPrincipal Jwt principal) {
+        return ResponseEntity.of(service.findById(principal.getSubject(), id));
     }
 
     @PostMapping
-    public ResponseEntity<Expense> create(@RequestBody ExpenseRequest request) {
-        Expense created = service.create(request);
+    public ResponseEntity<Expense> create(@RequestBody ExpenseRequest request, @AuthenticationPrincipal Jwt principal) {
+        Expense created = service.create(principal.getSubject(), request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.id())
@@ -51,13 +53,14 @@ public class ExpenseController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Expense> update(@PathVariable long id, @RequestBody ExpenseRequest request) {
-        return ResponseEntity.of(service.update(id, request));
+    public ResponseEntity<Expense> update(@PathVariable long id, @RequestBody ExpenseRequest request,
+                                          @AuthenticationPrincipal Jwt principal) {
+        return ResponseEntity.of(service.update(principal.getSubject(), id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable long id) {
-        return service.delete(id) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    public ResponseEntity<Void> delete(@PathVariable long id, @AuthenticationPrincipal Jwt principal) {
+        return service.delete(principal.getSubject(), id) ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 }
 

@@ -1,0 +1,2 @@
+FROM apache/kafka:3.9.1
+EXPOSE 9092 9093

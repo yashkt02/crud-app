@@ -1,3 +1,15 @@
+envVarGroups:
+  - name: everyday-jwt-secret
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+  - name: everyday-mysql-secrets
+    envVars:
+      - key: MYSQL_APP_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+
 services:
   - type: web
     name: everyday-expense-tracker
@@ -6,3 +18,149 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /
+    envVars:
+      - fromGroup: everyday-jwt-secret
+      - key: AUTH_SERVICE_HOST
+        fromService:
+          type: web
+          name: everyday-auth
+          property: host
+      - key: AUTH_SERVICE_PORT
+        fromService:
+          type: web
+          name: everyday-auth
+          property: port
+      - key: SUMMARY_SERVICE_HOST
+        fromService:
+          type: web
+          name: everyday-summary
+          property: host
+      - key: SUMMARY_SERVICE_PORT
+        fromService:
+          type: web
+          name: everyday-summary
+          property: port
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: everyday-kafka
+          property: hostport
+
+  - type: web
+    name: everyday-auth
+    runtime: docker
+    plan: 0.5c-512mb
+    dockerfilePath: ./auth-service/Dockerfile
+    dockerContext: ./auth-service
+    envVars:
+      - fromGroup: everyday-jwt-secret
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_USERS
+        value: ""
+      - key: AUTH_DB_URL
+        value: "jdbc:h2:file:/data/expense_auth;DB_CLOSE_ON_EXIT=FALSE"
+    disk:
+      name: auth-data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: web
+    name: everyday-summary
+    runtime: docker
+    plan: free
+    dockerfilePath: ./summary-service/Dockerfile
+    dockerContext: ./summary-service
+    envVars:
+      - fromGroup: everyday-jwt-secret
+      - key: AUTH_SERVICE_HOST
+        fromService:
+          type: web
+          name: everyday-auth
+          property: host
+      - key: AUTH_SERVICE_PORT
+        fromService:
+          type: web
+          name: everyday-auth
+          property: port
+      - key: SUMMARY_DB_HOST
+        fromService:
+          type: pserv
+          name: everyday-mysql
+          property: host
+      - key: SUMMARY_DB_PORT
+        value: "3306"
+      - key: SUMMARY_DB_NAME
+        value: expense_tracker
+      - key: SUMMARY_DB_USERNAME
+        fromService:
+          type: pserv
+          name: everyday-mysql
+          envVarKey: MYSQL_USER
+      - key: SUMMARY_DB_PASSWORD
+        fromService:
+          type: pserv
+          name: everyday-mysql
+          envVarKey: MYSQL_APP_PASSWORD
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        fromService:
+          type: pserv
+          name: everyday-kafka
+          property: hostport
+
+  - type: pserv
+    name: everyday-mysql
+    runtime: docker
+    plan: 0.5c-1g
+    dockerfilePath: ./deploy/mysql/Dockerfile
+    dockerContext: ./deploy/mysql
+    envVars:
+      - fromGroup: everyday-mysql-secrets
+      - key: MYSQL_DATABASE
+        value: expense_tracker
+      - key: MYSQL_USER
+        value: expense_app
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 5
+
+  - type: pserv
+    name: everyday-kafka
+    runtime: docker
+    plan: 0.5c-512mb
+    dockerfilePath: ./deploy/kafka/Dockerfile
+    dockerContext: ./deploy/kafka
+    envVars:
+      - key: KAFKA_NODE_ID
+        value: "1"
+      - key: KAFKA_PROCESS_ROLES
+        value: broker,controller
+      - key: KAFKA_LISTENERS
+        value: PLAINTEXT://:9092,CONTROLLER://:9093
+      - key: KAFKA_ADVERTISED_LISTENERS
+        value: PLAINTEXT://everyday-kafka:9092
+      - key: KAFKA_CONTROLLER_LISTENER_NAMES
+        value: CONTROLLER
+      - key: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+        value: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - key: KAFKA_CONTROLLER_QUORUM_VOTERS
+        value: 1@everyday-kafka:9093
+      - key: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+        value: "1"
+      - key: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+        value: "1"
+      - key: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+        value: "1"
+      - key: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+        value: "0"
+      - key: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+        value: "true"
+      - key: KAFKA_LOG_DIRS
+        value: /tmp/kraft-combined-logs
+    disk:
+      name: kafka-data
+      mountPath: /tmp/kraft-combined-logs
+      sizeGB: 5

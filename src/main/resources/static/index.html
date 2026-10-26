@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#f3f5f1">
   <title>Everyday | Expense tracker</title>
   <link rel="stylesheet" href="/expense.css">
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=20261027-render-gateway" defer></script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Everyday expense tracker home"><span class="brand-mark">E</span> everyday</a>
-    <span class="topbar-note"><span class="status-dot"></span> PERSONAL FINANCE</span>
+    <div class="topbar-note"><span class="status-dot"></span> PERSONAL FINANCE <button id="logout-button" class="text-button" type="button" hidden>Sign out</button></div>
   </header>
 
   <main class="layout">
@@ -23,6 +23,16 @@
     </section>
 
     <section class="workspace" aria-label="Expense tracker">
+      <form id="auth-form" class="expense-form auth-form">
+        <div class="form-heading"><div><p class="eyebrow">ACCOUNT ACCESS</p><h3 id="auth-title">Sign in</h3></div></div>
+        <div class="form-grid">
+          <label class="field field-wide">Username<input id="auth-username" name="username" autocomplete="username" maxlength="80" required></label>
+          <label class="field field-wide">Password<input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="8" required></label>
+        </div>
+        <p id="auth-error" class="form-error" role="alert" hidden></p>
+        <div class="form-actions"><button id="auth-mode-toggle" class="button button-light" type="button">Create account</button><button id="auth-submit" class="button button-accent" type="submit">Sign in</button></div>
+      </form>
+      <div id="expenses-app" hidden>
       <div class="section-heading">
         <div>
           <p class="eyebrow" id="current-month-label">THIS MONTH</p>
@@ -35,6 +45,54 @@
         <article class="summary-item summary-month"><span class="summary-label">THIS MONTH</span><strong id="monthly-total">₹0</strong><span class="summary-caption">spent so far</span></article>
         <article class="summary-item"><span class="summary-label">ALL RECORDED</span><strong id="all-time-total">₹0</strong><span class="summary-caption">across all entries</span></article>
       </div>
+
+      <section class="lend-borrow-section" aria-labelledby="lend-borrow-title">
+        <div class="list-heading"><h3 id="lend-borrow-title">Lend &amp; borrow</h3><span>CONFIRMED ONLY AFTER APPROVAL</span></div>
+        <div class="summary-grid lending-summary" aria-label="Lending and borrowing summary">
+          <article class="summary-item"><span class="summary-label">TOTAL LENT</span><strong id="lent-total">₹0.00</strong><span class="summary-caption">approved requests</span></article>
+          <article class="summary-item"><span class="summary-label">TOTAL BORROWED</span><strong id="borrowed-total">₹0.00</strong><span class="summary-caption">approved requests</span></article>
+          <article class="summary-item"><span class="summary-label">TO RECEIVE</span><strong id="receive-total">₹0.00</strong><span class="summary-caption">not marked repaid</span></article>
+          <article class="summary-item"><span class="summary-label">TO PAY</span><strong id="pay-total">₹0.00</strong><span class="summary-caption">not marked repaid</span></article>
+        </div>
+
+        <form id="lend-borrow-form" class="expense-form">
+          <div class="form-heading"><div><p class="eyebrow">NEW REQUEST</p><h3>Money between people</h3></div></div>
+          <div class="form-grid">
+            <label class="field">Request type<select id="lend-direction" required><option value="LEND">I am lending</option><option value="BORROW">I am borrowing</option></select></label>
+            <label class="field">Person<select id="lend-recipient" required><option value="">Choose a user</option></select></label>
+            <label class="field">Amount (₹)<input id="lend-amount" type="number" min="0.01" step="0.01" required></label>
+            <label class="field">Description (optional)<input id="lend-description" maxlength="240" placeholder="e.g. Shared cab"></label>
+          </div>
+          <div class="person-actions"><button id="add-person-toggle" class="text-button" type="button">+ Add person</button><span class="summary-caption">They will sign in with the password you set here.</span></div>
+          <p id="lend-error" class="form-error" role="alert" hidden></p>
+          <div class="form-actions"><button class="button button-accent" type="submit">Send request</button></div>
+        </form>
+
+        <form id="add-person-form" class="expense-form add-person-form" hidden>
+          <div class="form-heading"><div><p class="eyebrow">NEW ACCOUNT</p><h3>Add a person</h3></div><button id="close-person-form" class="icon-button" type="button" aria-label="Close form" title="Close">×</button></div>
+          <div class="form-grid">
+            <label class="field">Username<input id="person-username" maxlength="80" autocomplete="off" required></label>
+            <label class="field">Temporary password<input id="person-password" type="password" minlength="8" autocomplete="new-password" required></label>
+          </div>
+          <p class="summary-caption">This creates a USER account. Share the password with that person securely.</p>
+          <p id="person-error" class="form-error" role="alert" hidden></p>
+          <div class="form-actions"><button id="cancel-person-form" class="button button-light" type="button">Cancel</button><button class="button button-accent" type="submit">Create account</button></div>
+        </form>
+
+        <div class="lend-columns">
+          <section aria-labelledby="received-requests-title">
+            <div class="list-heading"><h3 id="received-requests-title">Needs your decision</h3><span id="received-count">0</span></div>
+            <div id="received-requests" class="expense-list"></div>
+          </section>
+          <section aria-labelledby="sent-requests-title">
+            <div class="list-heading"><h3 id="sent-requests-title">Sent requests</h3><span id="sent-count">0</span></div>
+            <div id="sent-requests" class="expense-list"></div>
+          </section>
+        </div>
+
+        <div class="list-heading lending-history-heading"><h3>Confirmed transactions</h3><span id="history-count">0</span></div>
+        <div id="lending-history" class="expense-list"></div>
+      </section>
 
       <form id="expense-form" class="expense-form" hidden>
         <div class="form-heading">
@@ -55,6 +113,7 @@
       <div id="notice" class="notice" role="status" hidden></div>
       <div class="list-heading"><h3>Recent expenses</h3><span>NEWEST FIRST</span></div>
       <div id="expense-list" class="expense-list" aria-live="polite"></div>
+      </div>
     </section>
   </main>
 

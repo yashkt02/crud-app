@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS lend_borrow_requests (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    requester_username VARCHAR(80) NOT NULL,
+    recipient_username VARCHAR(80) NOT NULL,
+    lender_username VARCHAR(80) NOT NULL,
+    borrower_username VARCHAR(80) NOT NULL,
+    direction VARCHAR(10) NOT NULL,
+    amount DECIMAL(19, 2) NOT NULL,
+    description VARCHAR(240),
+    status VARCHAR(12) NOT NULL,
+    created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    decided_at TIMESTAMP(6) NULL,
+    CONSTRAINT chk_lend_borrow_direction CHECK (direction IN ('LEND', 'BORROW')),
+    CONSTRAINT chk_lend_borrow_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    CONSTRAINT chk_lend_borrow_amount CHECK (amount > 0),
+    INDEX idx_lend_borrow_requester (requester_username, created_at),
+    INDEX idx_lend_borrow_recipient (recipient_username, created_at),
+    INDEX idx_lend_borrow_lender (lender_username, status),
+    INDEX idx_lend_borrow_borrower (borrower_username, status)
+);

@@ -1,0 +1,104 @@
+name: everyday-expense-tracker
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-expense-local-root}
+      MYSQL_DATABASE: expense_tracker
+      MYSQL_USER: expense_app
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:-expense-local-app}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+
+  expense-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-this-before-deploying}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      AUTH_SERVICE_URL: http://auth-service:8081
+      SUMMARY_SERVICE_URL: http://summary-service:8082
+    ports:
+      - "8080:8080"
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-this-before-deploying}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-yash1234}
+      AUTH_DB_URL: jdbc:h2:file:/data/expense_auth;DB_CLOSE_ON_EXIT=FALSE
+    ports:
+      - "8081:8081"
+    volumes:
+      - auth_data:/data
+
+  summary-service:
+    build:
+      context: ./summary-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-this-before-deploying}
+      SUMMARY_DB_URL: jdbc:mysql://mysql:3306/expense_tracker
+      SUMMARY_DB_USERNAME: expense_app
+      SUMMARY_DB_PASSWORD: ${MYSQL_APP_PASSWORD:-expense-local-app}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      AUTH_SERVICE_URL: http://auth-service:8081
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: "8081"
+      SERVER_PORT: "8082"
+    ports:
+      - "8082:8082"
+
+volumes:
+  auth_data:
+  kafka_data:
+  mysql_data:
