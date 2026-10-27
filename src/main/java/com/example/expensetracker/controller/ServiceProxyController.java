@@ -19,7 +19,7 @@ import java.util.Set;
 public class ServiceProxyController {
     private static final String PREFIX = "/gateway/";
     private static final Set<String> FORWARDED_HEADERS = Set.of(
-            HttpHeaders.AUTHORIZATION, HttpHeaders.ACCEPT, HttpHeaders.CONTENT_TYPE);
+            HttpHeaders.AUTHORIZATION, HttpHeaders.ACCEPT, HttpHeaders.CONTENT_TYPE, "Idempotency-Key");
 
     private final RestClient.Builder clientBuilder;
     private final String authServiceUrl;

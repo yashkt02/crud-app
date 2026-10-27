@@ -6,7 +6,8 @@
   <meta name="theme-color" content="#f3f5f1">
   <title>Everyday | Expense tracker</title>
   <link rel="stylesheet" href="/expense.css">
-  <script src="/app.js?v=20261027-render-gateway" defer></script>
+  <script src="/vendor/chart.umd.min.js" defer></script>
+  <script src="/app.js?v=20261028-repayments" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -54,6 +55,14 @@
           <article class="summary-item"><span class="summary-label">TO RECEIVE</span><strong id="receive-total">₹0.00</strong><span class="summary-caption">not marked repaid</span></article>
           <article class="summary-item"><span class="summary-label">TO PAY</span><strong id="pay-total">₹0.00</strong><span class="summary-caption">not marked repaid</span></article>
         </div>
+
+        <section class="outstanding-panel" aria-labelledby="outstanding-title">
+          <div class="list-heading"><h3 id="outstanding-title">Outstanding by person</h3><span>AFTER REPAYMENTS</span></div>
+          <p id="outstanding-empty" class="outstanding-empty" hidden>No outstanding balances yet. Approved transactions appear here until they are fully repaid.</p>
+          <div id="outstanding-chart-wrap" class="outstanding-chart-wrap" hidden>
+            <div id="outstanding-chart-frame" class="outstanding-chart-frame"><canvas id="outstanding-chart" role="img" aria-label="Outstanding balances by person"></canvas></div>
+          </div>
+        </section>
 
         <form id="lend-borrow-form" class="expense-form">
           <div class="form-heading"><div><p class="eyebrow">NEW REQUEST</p><h3>Money between people</h3></div></div>

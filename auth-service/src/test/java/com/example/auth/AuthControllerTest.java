@@ -16,7 +16,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "JWT_SECRET=test-only-jwt-secret-that-is-at-least-32-bytes",
         "ADMIN_USERNAME=test-admin",
-        "ADMIN_PASSWORD=test-admin-password"
+        "ADMIN_PASSWORD=test-admin-password",
+        "AUTH_DB_URL=jdbc:h2:mem:auth_controller_test;DB_CLOSE_DELAY=-1"
 })
 @AutoConfigureMockMvc
 class AuthControllerTest {

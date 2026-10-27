@@ -9,11 +9,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -58,6 +58,23 @@ public class LendBorrowController {
     @GetMapping("/overview")
     public LendBorrowDtos.SummaryResponse overview(@AuthenticationPrincipal Jwt principal) {
         return lendBorrow.overview(principal.getSubject());
+    }
+
+    @GetMapping("/requests/{id}")
+    public LendBorrowDtos.TransactionView transaction(@PathVariable long id,
+                                                       @AuthenticationPrincipal Jwt principal) {
+        return lendBorrow.transaction(id, principal.getSubject());
+    }
+
+    @PostMapping("/requests/{id}/repayments")
+    public ResponseEntity<LendBorrowDtos.RepaymentView> repay(@PathVariable long id,
+                                                               @RequestBody LendBorrowDtos.RepaymentRequest request,
+                                                               @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+                                                               @AuthenticationPrincipal Jwt principal) {
+        LendBorrowService.RepaymentOperation operation = lendBorrow.repay(id, principal.getSubject(),
+                request == null ? null : request.amount(), idempotencyKey);
+        return ResponseEntity.status(operation.duplicate() ? HttpStatus.OK : HttpStatus.CREATED)
+                .body(operation.repayment());
     }
 
     private String bearer(Jwt principal) {

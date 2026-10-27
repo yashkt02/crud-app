@@ -52,6 +52,31 @@ h2 span { margin-left: 6px; color: #8a8d83; font-family: 'DM Sans', sans-serif; 
 .lending-summary { grid-template-columns: repeat(4, 1fr); margin: 14px 0 20px; }
 .lending-summary .summary-item { min-height: 96px; padding: 13px 15px; }
 .lending-summary .summary-item + .summary-item { border-left: 1px solid var(--line); }
+.outstanding-panel { margin: 25px 0 30px; padding: 18px; border: 1px solid var(--line); background: var(--white); }
+.outstanding-panel .list-heading { margin-bottom: 10px; }
+.outstanding-chart-frame { position: relative; width: 100%; min-height: 230px; }
+.outstanding-empty { margin: 0; padding: 34px 18px; background: #f7f8f4; color: var(--muted); text-align: center; font-size: 12px; line-height: 1.6; }
+.transaction-details { border-bottom: 1px solid var(--line); }
+.transaction-details > summary { padding: 13px 3px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style-position: inside; }
+.transaction-summary { min-width: 0; display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 10px; }
+.transaction-title { overflow-wrap: anywhere; font-size: 12px; font-weight: 700; }
+.transaction-amount { white-space: nowrap; font-size: 13px; font-weight: 700; }
+.repayment-status { padding: 4px 7px; border-radius: 2px; background: #e9ece5; color: #526157; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.repayment-status.fully-repaid { background: #e3eadf; color: var(--green-dark); }
+.transaction-detail-body { padding: 0 3px 17px 20px; }
+.transaction-description { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
+.transaction-facts { margin: 0 0 15px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.transaction-fact { padding: 9px; background: #f7f8f4; }
+.transaction-fact dt { color: var(--muted); font-size: 9px; }
+.transaction-fact dd { margin: 5px 0 0; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.repayment-history-heading { margin: 13px 0 6px; font-size: 11px; font-weight: 700; }
+.repayment-history { margin: 0; padding: 0; list-style: none; }
+.repayment-history li { padding: 6px 0; display: flex; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.repayment-history strong { color: var(--ink); white-space: nowrap; }
+.repayment-form { margin-top: 14px; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; background: #f7f8f4; }
+.repayment-form .field input { max-width: 220px; }
+.repayment-error { grid-column: 1 / -1; margin: 0; color: var(--red); font-size: 11px; }
+.repayment-form button:disabled { cursor: wait; opacity: .65; }
 .lend-borrow-section { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--line); }
 .lend-borrow-section > .list-heading:first-child { margin-bottom: 8px; }
 .lend-borrow-section .expense-form { margin-top: 18px; }
@@ -117,6 +142,9 @@ h2 span { margin-left: 6px; color: #8a8d83; font-family: 'DM Sans', sans-serif; 
   .intro-meta { margin-top: 23px; }
   .section-heading { align-items: center; }
   .footer { padding: 0 6%; }
+  .lending-summary { grid-template-columns: 1fr 1fr; }
+  .lending-summary .summary-item:nth-child(odd) { border-left: 0; }
+  .lending-summary .summary-item:nth-child(n + 3) { border-top: 1px solid var(--line); }
 }
 @media (max-width: 420px) {
   .topbar-note { font-size: 8px; }
@@ -131,7 +159,14 @@ h2 span { margin-left: 6px; color: #8a8d83; font-family: 'DM Sans', sans-serif; 
   .expense-detail { flex-wrap: wrap; gap: 5px; }
   .row-actions { grid-column: 2 / 4; }
   .lending-summary { grid-template-columns: 1fr 1fr; }
-  .lending-summary .summary-item:nth-child(3) { border-left: 0; }
   .lend-columns { grid-template-columns: 1fr; gap: 20px; }
+  .outstanding-panel { padding: 13px; }
+  .transaction-details > summary { align-items: flex-start; }
+  .transaction-summary { flex-direction: column; align-items: flex-start; }
+  .transaction-facts { gap: 5px; }
+  .transaction-fact { padding: 7px; }
+  .transaction-fact dd { font-size: 10px; }
+  .repayment-form { grid-template-columns: 1fr; }
+  .repayment-form .field input { max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

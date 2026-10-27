@@ -7,16 +7,16 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class LendBorrowRepository {
     private static final RowMapper<LendBorrowDtos.RequestView> REQUEST_MAPPER = LendBorrowRepository::mapRequest;
+    private static final RowMapper<LendBorrowDtos.RepaymentView> REPAYMENT_MAPPER = LendBorrowRepository::mapRepayment;
     private final JdbcTemplate jdbc;
 
     public LendBorrowRepository(JdbcTemplate jdbc) {
@@ -46,8 +46,8 @@ public class LendBorrowRepository {
         return jdbc.query("SELECT * FROM lend_borrow_requests WHERE id = ? FOR UPDATE", REQUEST_MAPPER, id).stream().findFirst();
     }
 
-    public void decide(long id, String status) {
-        jdbc.update("UPDATE lend_borrow_requests SET status = ?, decided_at = CURRENT_TIMESTAMP(6) WHERE id = ? AND status = 'PENDING'", status, id);
+    public int decide(long id, String status) {
+        return jdbc.update("UPDATE lend_borrow_requests SET status = ?, decided_at = CURRENT_TIMESTAMP(6) WHERE id = ? AND status = 'PENDING'", status, id);
     }
 
     public Optional<LendBorrowDtos.RequestView> findById(long id) {
@@ -72,6 +72,34 @@ public class LendBorrowRepository {
 
     public List<LendBorrowDtos.RequestView> confirmed(String username) {
         return jdbc.query("SELECT * FROM lend_borrow_requests WHERE status = 'APPROVED' AND (lender_username = ? OR borrower_username = ?) ORDER BY decided_at DESC, id DESC", REQUEST_MAPPER, username, username);
+    }
+
+    public List<LendBorrowDtos.RepaymentView> repayments(long transactionId) {
+        return jdbc.query("SELECT id, transaction_id, payer_username, amount, created_at FROM lend_borrow_repayments WHERE transaction_id = ? ORDER BY created_at, id", REPAYMENT_MAPPER, transactionId);
+    }
+
+    public java.util.Optional<LendBorrowDtos.RepaymentView> repaymentByKey(long transactionId, String idempotencyKey) {
+        return jdbc.query("SELECT id, transaction_id, payer_username, amount, created_at FROM lend_borrow_repayments WHERE transaction_id = ? AND idempotency_key = ?", REPAYMENT_MAPPER, transactionId, idempotencyKey).stream().findFirst();
+    }
+
+    public BigDecimal sumRepayments(long transactionId) {
+        BigDecimal value = jdbc.queryForObject("SELECT COALESCE(SUM(amount), 0) FROM lend_borrow_repayments WHERE transaction_id = ?", BigDecimal.class, transactionId);
+        return value == null ? BigDecimal.ZERO.setScale(2) : value.setScale(2);
+    }
+
+    public LendBorrowDtos.RepaymentView createRepayment(long transactionId, String payerUsername,
+                                                         BigDecimal amount, String idempotencyKey) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbc.update(connection -> {
+            var statement = connection.prepareStatement("INSERT INTO lend_borrow_repayments (transaction_id, payer_username, amount, idempotency_key) VALUES (?, ?, ?, ?)", new String[]{"id"});
+            statement.setLong(1, transactionId);
+            statement.setString(2, payerUsername);
+            statement.setBigDecimal(3, amount);
+            statement.setString(4, idempotencyKey);
+            return statement;
+        }, keyHolder);
+        Number id = keyHolder.getKey();
+        return jdbc.query("SELECT id, transaction_id, payer_username, amount, created_at FROM lend_borrow_repayments WHERE id = ?", REPAYMENT_MAPPER, id.longValue()).stream().findFirst().orElseThrow();
     }
 
     public BigDecimal sumApprovedAsLender(String username) {
@@ -106,5 +134,11 @@ public class LendBorrowRepository {
                 row.getString("direction"), row.getBigDecimal("amount"), row.getString("description"), row.getString("status"),
                 row.getTimestamp("created_at").toLocalDateTime(),
                 row.getTimestamp("decided_at") == null ? null : row.getTimestamp("decided_at").toLocalDateTime());
+    }
+
+    private static LendBorrowDtos.RepaymentView mapRepayment(ResultSet row, int index) throws SQLException {
+        Timestamp createdAt = row.getTimestamp("created_at");
+        return new LendBorrowDtos.RepaymentView(row.getLong("id"), row.getLong("transaction_id"),
+                row.getString("payer_username"), row.getBigDecimal("amount"), createdAt.toLocalDateTime());
     }
 }

@@ -16,6 +16,23 @@ public final class LendBorrowDtos {
                               String status, LocalDateTime createdAt, LocalDateTime decidedAt) {
     }
 
+    public record RepaymentRequest(BigDecimal amount) {
+    }
+
+    public record RepaymentView(long id, long transactionId, String payerUsername, BigDecimal amount,
+                                LocalDateTime createdAt) {
+    }
+
+    public record TransactionView(long id, String requesterUsername, String recipientUsername, String lenderUsername,
+                                  String borrowerUsername, String direction, BigDecimal amount, String description,
+                                  String status, LocalDateTime createdAt, LocalDateTime decidedAt,
+                                  BigDecimal totalRepaid, BigDecimal outstandingBalance, String repaymentStatus,
+                                  List<RepaymentView> repaymentHistory) {
+    }
+
+    public record PersonOutstanding(String username, BigDecimal outstandingToReceive, BigDecimal outstandingToPay) {
+    }
+
     public record Summary(BigDecimal totalLent, BigDecimal totalBorrowed, BigDecimal outstandingToReceive,
                           BigDecimal outstandingToPay, long pendingSent, long pendingReceived) {
     }
@@ -27,6 +44,6 @@ public final class LendBorrowDtos {
     }
 
     public record SummaryResponse(Summary summary, List<RequestView> pendingSent, List<RequestView> pendingReceived,
-                                  List<RequestView> confirmedHistory) {
+                                  List<TransactionView> confirmedHistory, List<PersonOutstanding> outstandingByPerson) {
     }
 }

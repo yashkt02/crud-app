@@ -12,6 +12,7 @@ const authTokenKey = 'expense-access-token';
 const authUsernameKey = 'expense-username';
 const lendingApi = '/gateway/summary/api/lend-borrow';
 let registering = false;
+let outstandingChart;
 const today = new Intl.DateTimeFormat('en-CA').format(new Date());
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
 document.querySelector('#date').max = today;
@@ -173,6 +174,173 @@ function renderLendingItems(target, items, canDecide = false) {
   }
 }
 
+function renderOutstandingChart(people) {
+  const chartWrap = document.querySelector('#outstanding-chart-wrap');
+  const emptyState = document.querySelector('#outstanding-empty');
+  const balances = people.filter((person) => Number(person.outstandingToReceive) > 0 || Number(person.outstandingToPay) > 0);
+  if (balances.length === 0) {
+    outstandingChart?.destroy();
+    outstandingChart = undefined;
+    chartWrap.hidden = true;
+    emptyState.hidden = false;
+    return;
+  }
+
+  emptyState.hidden = true;
+  chartWrap.hidden = false;
+  document.querySelector('#outstanding-chart-frame').style.height = `${Math.max(230, Math.min(600, balances.length * 48 + 86))}px`;
+  const labels = balances.map((person) => person.username);
+  const formatMoney = (value) => currency.format(Number(value));
+  const datasets = [
+    {
+      label: 'To receive',
+      data: balances.map((person) => Number(person.outstandingToReceive)),
+      backgroundColor: '#238566',
+      borderRadius: 3,
+      maxBarThickness: 22
+    },
+    {
+      label: 'To pay',
+      data: balances.map((person) => Number(person.outstandingToPay)),
+      backgroundColor: '#b84c41',
+      borderRadius: 3,
+      maxBarThickness: 22
+    }
+  ];
+  if (!outstandingChart) {
+    outstandingChart = new Chart(document.querySelector('#outstanding-chart'), {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: true },
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, color: '#596058', font: { family: 'DM Sans', size: 10 } } },
+          tooltip: {
+            callbacks: {
+              title: (items) => items[0]?.label ?? '',
+              label: (context) => `${context.dataset.label}: ${formatMoney(context.raw)}`
+            }
+          }
+        },
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#e7ebe4' }, ticks: { color: '#777c72', callback: (value) => formatMoney(value), font: { family: 'DM Sans', size: 9 } } },
+          y: { grid: { display: false }, ticks: { color: '#202c29', font: { family: 'DM Sans', size: 10 } } }
+        }
+      }
+    });
+  } else {
+    outstandingChart.data.labels = labels;
+    outstandingChart.data.datasets = datasets;
+    outstandingChart.update('none');
+  }
+}
+
+function transactionTitle(item, currentUser) {
+  return item.lenderUsername.toLowerCase() === currentUser.toLowerCase()
+    ? `Lent to ${item.borrowerUsername}`
+    : `Borrowed from ${item.lenderUsername}`;
+}
+
+function addTransactionFact(target, label, value) {
+  const fact = element('div', 'transaction-fact');
+  fact.append(element('dt', '', label), element('dd', '', currency.format(Number(value))));
+  target.append(fact);
+}
+
+function renderTransactionHistory(target, transactions, currentUser) {
+  target.replaceChildren();
+  if (transactions.length === 0) {
+    target.append(element('div', 'empty-state', 'Nothing here yet.'));
+    return;
+  }
+  for (const transaction of transactions) {
+    const details = element('details', 'transaction-details');
+    const summary = document.createElement('summary');
+    const heading = element('span', 'transaction-summary');
+    heading.append(element('span', 'transaction-title', transactionTitle(transaction, currentUser)));
+    heading.append(element('span', 'transaction-amount', currency.format(Number(transaction.amount))));
+    const statusLabel = transaction.repaymentStatus.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const status = element('span', `repayment-status${transaction.repaymentStatus === 'FULLY_REPAID' ? ' fully-repaid' : ''}`, statusLabel);
+    summary.append(heading, status);
+    details.append(summary);
+
+    const body = element('div', 'transaction-detail-body');
+    if (transaction.description) body.append(element('p', 'transaction-description', transaction.description));
+    const facts = document.createElement('dl');
+    facts.className = 'transaction-facts';
+    addTransactionFact(facts, 'Original amount', transaction.amount);
+    addTransactionFact(facts, 'Repaid', transaction.totalRepaid);
+    addTransactionFact(facts, 'Outstanding', transaction.outstandingBalance);
+    body.append(facts);
+
+    body.append(element('h5', 'repayment-history-heading', 'Repayment history'));
+    const history = element('ul', 'repayment-history');
+    if (transaction.repaymentHistory.length === 0) {
+      history.append(element('li', '', 'No repayments recorded yet.'));
+    } else {
+      for (const repayment of transaction.repaymentHistory) {
+        const entry = document.createElement('li');
+        entry.append(element('span', '', `${repayment.payerUsername} · ${new Date(repayment.createdAt).toLocaleDateString('en-IN')}`));
+        entry.append(element('strong', '', currency.format(Number(repayment.amount))));
+        history.append(entry);
+      }
+    }
+    body.append(history);
+
+    if (transaction.borrowerUsername.toLowerCase() === currentUser.toLowerCase() && Number(transaction.outstandingBalance) > 0) {
+      const repaymentForm = document.createElement('form');
+      repaymentForm.className = 'repayment-form';
+      const amountLabel = element('label', 'field', 'Repayment amount (₹)');
+      const amountInput = document.createElement('input');
+      amountInput.type = 'number';
+      amountInput.min = '0.01';
+      amountInput.step = '0.01';
+      amountInput.max = String(transaction.outstandingBalance);
+      amountInput.required = true;
+      amountInput.inputMode = 'decimal';
+      amountLabel.append(amountInput);
+      const submit = element('button', 'button button-accent', 'Repay');
+      submit.type = 'submit';
+      repaymentForm.append(amountLabel, submit);
+      const error = element('p', 'repayment-error');
+      error.hidden = true;
+      repaymentForm.append(error);
+      repaymentForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (repaymentForm.dataset.submitting === 'true') return;
+        repaymentForm.dataset.submitting = 'true';
+        repaymentForm.dataset.idempotencyKey ||= globalThis.crypto?.randomUUID?.()
+          || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        submit.disabled = true;
+        submit.textContent = 'Saving…';
+        error.hidden = true;
+        try {
+          await lendingRequest(`${lendingApi}/requests/${transaction.id}/repayments`, {
+            method: 'POST',
+            headers: { 'Idempotency-Key': repaymentForm.dataset.idempotencyKey },
+            body: JSON.stringify({ amount: Number(amountInput.value) })
+          });
+          const refreshed = await loadLending();
+          showNotice(refreshed ? 'Repayment recorded. Balances updated.' : 'Repayment recorded, but the dashboard could not refresh. Reload the page to see the latest balances.', !refreshed);
+        } catch (requestError) {
+          error.textContent = requestError.message;
+          error.hidden = false;
+        } finally {
+          repaymentForm.dataset.submitting = 'false';
+          submit.disabled = false;
+          submit.textContent = 'Repay';
+        }
+      });
+      body.append(repaymentForm);
+    }
+    details.append(body);
+    target.append(details);
+  }
+}
+
 async function loadLending() {
   const peoplePromise = loadRegisteredPeople().catch((error) => {
     showNotice(`Could not load registered users: ${error.message}`, true);
@@ -187,12 +355,14 @@ async function loadLending() {
     document.querySelector('#borrowed-total').textContent = currency.format(Number(summary.totalBorrowed));
     document.querySelector('#receive-total').textContent = currency.format(Number(summary.outstandingToReceive));
     document.querySelector('#pay-total').textContent = currency.format(Number(summary.outstandingToPay));
+    renderOutstandingChart(overview.outstandingByPerson);
     renderLendingItems(document.querySelector('#received-requests'), overview.pendingReceived, true);
     renderLendingItems(document.querySelector('#sent-requests'), overview.pendingSent);
-    renderLendingItems(document.querySelector('#lending-history'), overview.confirmedHistory);
+    renderTransactionHistory(document.querySelector('#lending-history'), overview.confirmedHistory, sessionStorage.getItem(authUsernameKey));
     document.querySelector('#received-count').textContent = overview.pendingReceived.length;
     document.querySelector('#sent-count').textContent = overview.pendingSent.length;
     document.querySelector('#history-count').textContent = overview.confirmedHistory.length;
+    return true;
   } catch (error) {
     if (error.status === 401) {
       sessionStorage.removeItem(authTokenKey);
@@ -200,6 +370,7 @@ async function loadLending() {
       setAuthenticated(false);
     }
     showNotice(`Could not load lending data: ${error.message}`, true);
+    return false;
   }
 }
 
@@ -287,6 +458,14 @@ function setAuthenticated(authenticated) {
     document.querySelector('#received-requests').replaceChildren();
     document.querySelector('#sent-requests').replaceChildren();
     document.querySelector('#lending-history').replaceChildren();
+    document.querySelector('#lent-total').textContent = currency.format(0);
+    document.querySelector('#borrowed-total').textContent = currency.format(0);
+    document.querySelector('#receive-total').textContent = currency.format(0);
+    document.querySelector('#pay-total').textContent = currency.format(0);
+    document.querySelector('#received-count').textContent = '0';
+    document.querySelector('#sent-count').textContent = '0';
+    document.querySelector('#history-count').textContent = '0';
+    renderOutstandingChart([]);
   }
 }
 
